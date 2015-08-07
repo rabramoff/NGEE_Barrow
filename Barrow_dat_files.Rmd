@@ -1,0 +1,218 @@
+---
+title: "Barrow Data"
+author: "rza"
+date: "July 25, 2015"
+output: html_document
+---
+#Description
+```
+This script was written to read in data that was originally downloaded using a telnet protocol and saved as .dat files.
+Data files are accumulated in two folders, one for each circuit board.
+The data originate from an experimental soil warming experiment in Barrow, Alaska.
+```
+#Code
+
+##Install required packages
+
+These packages only need to be installed once, then this code can be commented out or deleted.
+Often, knitr does not like to install from the command window. If this is the case, look to the bottom right window and click on Packages -> Install -> and search for `knitr` in the window that opens.  
+
+Knitr will provide a row of buttons across the top of the top left window in RStudio which allow you to view this document in html format (by clicking on the "Knit HTML" button), as well as run some or all of the code chunks below (by clicking on the "Chunks" button)
+
+```{r}
+#ptm <- proc.time() #start timer
+#uncomment to install packages from command line
+#install.packages("knitr")
+#install.packages("reshape")
+```
+
+##Enter path
+```{r}
+##enter path to the two folders that contain data from each circuit board
+path = "/Users/rzabramoff/Dropbox (Climate)/NGEE/MicroWarming Data/Data July 29-Aug 1 2015 copy"
+path2 = "/Users/rzabramoff/Dropbox (Climate)/NGEE/MicroWarming Data/Data July 29-Aug 1 2015 copy_number 2 copy ROSE EDIT/"
+```
+
+##Read in files, cut non-data rows, and parse
+```{r, warning = FALSE}
+  readMerge <- function(path) {
+        files <- list.files(path, full.names=TRUE) #list files in folder
+        
+          for(i in 1: length(files)) {
+            data <- read.table(files[i], header = FALSE, sep="\t", quote = "") #load files
+            cols <- as.character(data[,1]) #default data type is factor, change to character (i.e., string) to manipulate in next line
+            data <- as.data.frame(data[grep("^<\\|.*\\|>$", cols),]) #select only rows that satisfy the condition: "<|" at SOL & "|>" at EOL
+            # if the merged dataset does exist, append to it
+            if (exists("dataset")){
+              temp_dataset <- data
+              dataset<-rbind(dataset, temp_dataset)
+              rm(temp_dataset)  
+            }
+            # if the merged dataset doesn't exist, create it
+            if (!exists("dataset")){
+              dataset <- data
+            }
+          }
+ 
+        #remove whitespace from data strings
+        whitespace <- function(x) {
+          ch <- gsub(" ", "", x)
+        }
+        ch <- lapply(dataset, whitespace)
+        
+        ##split strings at | to assign columns
+        newdata <- data.frame(matrix(0, nrow = nrow(dataset) , ncol = as.numeric(37))) #create empty matrix
+        parsefx <- function(ch) {
+          x <- strsplit(ch, "\\|")
+          newdata <- do.call(rbind, lapply(x, `[`, c(1L:37L)))
+        }
+        newdata <- as.data.frame(lapply(ch, parsefx))
+    return(newdata)
+  }
+  
+  data <- readMerge(path)
+  data2 <- readMerge(path2)
+```
+
+##Enter column headers  
+
+There are two data sheets, one for each folder.  
+path -> data   
+path2 -> data2 
+
+```{r}
+  #headers for control board     
+   colnames(data) <- c("start", "date", "time", "id", "log", "BoardTemp", "U.R.8.5", "U.R.8.10", "U.R.8.15", "U.R.8.20", "U.R.8.25", "H.R.8.5", "H.R.8.10", "H.R.8.15", "H.R.8.20", "H.R.8.25", 
+                               "H.M.6.5", "H.M.6.10", "H.M.6.20", "H.M.6.35", "H.M.6.50", "NotKnown1", "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3", "end")
+  #headers for monitoring board 
+       colnames(data2) <- c("start", "date", "time", "id", "log", "BoardTemp", "H.M.10.5", "H.M.10.10", "H.M.10.20", "H.M.10.35", "H.M.10.50", "U.M.6.5", "U.M.6.10", "U.M.6.20", "U.M.6.35", "U.M.6.50", 
+                               "U.M.10.5", "U.M.10.10", "U.M.10.20", "U.M.10.35", "U.M.10.50", "NotKnown1",
+                               "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3", "end")
+```
+
+##Organize data in wide format
+
+There are two data files, one for each folder.  
+path -> wide  
+path2 -> wide2  
+
+```{r, warning = FALSE}
+  #redefine column types
+        redefCol <- function(data) {
+          convert.magic <- function(obj,types){
+            wide <- lapply(1:length(obj),FUN = function(i){FUN1 <- switch(types[i],character = as.character,numeric = as.numeric, factor = as.factor); FUN1(obj[,i])})
+            names(wide) <- colnames(obj)
+            as.data.frame(wide,stringsAsFactors = FALSE)
+          }
+          
+          widech <- convert.magic(data, c('character', 'factor', 'character', 'factor', 'factor', rep('character', 32)))
+          wide <- convert.magic(widech, c('character', 'factor', 'character', 'factor', 'factor', rep('numeric', 32)))
+          wide$date <- as.Date(wide$date, "%d-%m-%Y")
+          wide$time <- with(widech, as.POSIXct(paste(date,time), format= "%d-%m-%Y %H:%M:%S")) #time zone is still PDT (change time zone signature <- Alaska)
+          wide <- subset(wide, select = -c(start, end, NA., NA..1, NA..2, NA..3, NA..4, NA..5))
+          return(wide)
+        }
+        
+        wide <- redefCol(data)
+        wide2 <- redefCol(data2)
+```
+
+##Melt to long format and concatenate into one data object
+
+The data object created by this chunk is called `long`.  
+Some helpful commands:  
+`head(long)` <- view first 6 lines  
+`str(long)` <- view the structure of the data object  
+`nrow(long)` <- query the number of rows in this data object  
+`summary(long)` <- view some automatically-generated summary data  
+`long[1,1]` <- to view the element in the row 1, column 1  
+`long[long$depth == 1,]` <- select all of the rows that meet the condition depth = 1  
+At any time you can assign one of these commands to a variable. For example, to create a new data object that contains only data where depth = 1  
+`newdata <- long[long$depth == 1,]`  
+Check the ranges of this variable to be sure:  
+`range(long$depth)`  
+`range(newdata$depth)`  
+
+```{r}
+  #change from wide data format to long   #add 1 for first folder
+  library(reshape)
+  long1 <- melt(wide, id = c("date", "time", "id", "log", "BoardTemp", "NotKnown1", "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3"))
+  long2 <- melt(wide2, id = c("date", "time", "id", "log", "BoardTemp", "NotKnown1", "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3"))
+  long <- rbind(long1, long2)
+  
+  #split header into three columns
+  test <- strsplit(as.character(long$variable), "\\.")
+  
+  long$circuit <- unlist(lapply(test, '[[', 1)) #set header attribute 1
+  long$loc <- unlist(lapply(test, '[[', 2)) #set header attribute 2
+  long$depth <- unlist(lapply(test, '[[', 3)) #set header attribute 3
+  long <- subset(long, select = -c(variable))
+```
+
+##Optional
+###Write data object to .csv or sort data
+```{r}
+  #uncomment to write data to a csv file, change path to desired destination
+  #write.csv(long, file = "/Users/rzabramoff/Desktop/myfile.csv")
+  #write.csv(wide2, file = "/Users/rzabramoff/Desktop/mywidefile.csv")
+  
+  #uncomment to sort data
+  #sorted1 <- long[order(long$value),] #sort by value
+  #sorted2 <- long[order(long$value, long$depth),] #sort by value and depth
+  #sorted3 <- long[order(long$value, rev(long$depth)),] #sort by value (ascending) and depth (descending)
+```
+
+##Plots
+
+The code for these plots includes a lot of features that are not necessary now but may be useful, such as:  
+Spatial formatting of multiple plots (`par(mfrow)`)  
+Formatting for time axes (`axis.POSIXct`)  
+Legends
+Title (`main`)
+Point size (`cex`)  
+Point or line color (`col`)  
+Point type (`pch`)  
+Inserting symbols into axes (`expression`)  
+  
+Note in the third plot that I can impose multiple conditions at one time on the data that I plot:  
+Instead of `long$time`, which means select the time attribute of the data object `long`,  
+I can use `long[long$circuit == "H" & long$loc == 1 & long$depth == 1,]$time` to select the time attribute of the data object `long` ONLY if circuit = H AND location = 1 AND depth = 1.  
+  
+I can use other conditional arguments such as "|" for "or" and "!=" for "not".  
+```{r}
+par(mfrow = c(1,1))
+  plot(wide$time, wide$Uavg)
+```
+
+
+```{r}
+  par(mfrow = c(1,2)) #plots two plots side-by-side (one row of plots, and two columns)
+  #sample plot with wide data format
+  plot(wide2$time, wide2$Uavg, cex = 0.5, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", xaxt = "n")
+  r <- range(wide2$time)
+  axis.POSIXct(1, at = seq(r[1], r[2], by = "days"), format = "%m/%d - %I%p")
+  points(wide2$time, wide2$Havg, cex = 0.5, col = 2)
+  points(wide2$time, wide2$TempDiff, cex = 0.5, col = 4)
+  legend("topright",c("Uavg","Havg", "TempDiff"),
+         pch = c(1,1,1),
+         col=c(1,2,4),cex=1.3
+  )
+  
+  #sample plot with long data format (only plotting every 100th value for speed)
+  plot(long$time[seq(1,length(long$time), 100)], long$value[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", main = "All data", xaxt = "n")
+  r <- range(long$time)
+  axis.POSIXct(1, at = seq(r[1], r[2], by = "days"), format = "%m/%d - %I%p")
+
+  #sample plot with long data format (only plotting circuit H, location 1, depths 1 & 2)
+  par(mfrow = c(1,1))
+  plot(long[long$circuit == "H" & long$loc == 1 & long$depth == 1,]$time, long[long$circuit == "H" & long$loc == 1 & long$depth == 1,]$value, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", xaxt = "n", col = 1, ylim = c(0,40))
+  points(long[long$circuit == "H" & long$loc == 1 & long$depth == 2,]$time, long[long$circuit == "H" & long$loc == 1 & long$depth == 2,]$value, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", xaxt = "n", col = 2)
+  axis.POSIXct(1, at = seq(r[1], r[2], by = "hours"), format = "%m/%d - %I%p")
+    legend("topright",c("Depth 1","Depth 2"),
+         pch = c(1,1),
+         col=c(1,2),cex=1.3
+  )
+#proc.time() - ptm #end timer
+```
+
+

@@ -29,8 +29,8 @@ Knitr will provide a row of buttons across the top of the top left window in RSt
 ##Enter path
 ```{r}
 ##enter path to the two folders that contain data from each circuit board
-path = "/Users/rzabramoff/Dropbox (Climate)/NGEE/MicroWarming Data/Data July 29-Aug 1 2015 copy"
-path2 = "/Users/rzabramoff/Dropbox (Climate)/NGEE/MicroWarming Data/Data July 29-Aug 1 2015 copy_number 2 copy ROSE EDIT/"
+path = "/Users/rzabramoff/Desktop/Micro_warming telnet files" #control
+path2 = "/Users/rzabramoff/Desktop/Micro_warming telnet files 2" #monitor
 ```
 
 ##Read in files, cut non-data rows, and parse
@@ -82,12 +82,9 @@ path2 -> data2
 
 ```{r}
   #headers for control board     
-   colnames(data) <- c("start", "date", "time", "id", "log", "BoardTemp", "U.R.8.5", "U.R.8.10", "U.R.8.15", "U.R.8.20", "U.R.8.25", "H.R.8.5", "H.R.8.10", "H.R.8.15", "H.R.8.20", "H.R.8.25", 
-                               "H.M.6.5", "H.M.6.10", "H.M.6.20", "H.M.6.35", "H.M.6.50", "NotKnown1", "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3", "end")
+   colnames(data) <- c("start", "date", "time", "id", "log", "BoardTemp", "U.R.8.5", "U.R.8.10", "U.R.8.15", "U.R.8.20", "U.R.8.25", "H.R.8.5", "H.R.8.10", "H.R.8.15", "H.R.8.20", "H.R.8.25", "H.M.6.5", "H.M.6.10", "H.M.6.20", "H.M.6.35", "H.M.6.50", "NotKnown1", "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3", "end")
   #headers for monitoring board 
-       colnames(data2) <- c("start", "date", "time", "id", "log", "BoardTemp", "H.M.10.5", "H.M.10.10", "H.M.10.20", "H.M.10.35", "H.M.10.50", "U.M.6.5", "U.M.6.10", "U.M.6.20", "U.M.6.35", "U.M.6.50", 
-                               "U.M.10.5", "U.M.10.10", "U.M.10.20", "U.M.10.35", "U.M.10.50", "NotKnown1",
-                               "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3", "end")
+       colnames(data2) <- c("start", "date", "time", "id", "log", "BoardTemp", "H.M.10.5", "H.M.10.10", "H.M.10.20", "H.M.10.35", "H.M.10.50", "U.M.6.5", "U.M.6.10", "U.M.6.20", "U.M.6.35", "U.M.6.50", "U.M.10.5", "U.M.10.10", "U.M.10.20", "U.M.10.35", "U.M.10.50", "NotKnown1", "UAvg", "HAvg", "TempDiff", "HeaterSetting", "NotKnown2", "Voltage", "HeaterIntervalCount", "NotKnown3", "end")
 ```
 
 ##Organize data in wide format
@@ -143,9 +140,10 @@ Check the ranges of this variable to be sure:
   #split header into three columns
   test <- strsplit(as.character(long$variable), "\\.")
   
-  long$circuit <- unlist(lapply(test, '[[', 1)) #set header attribute 1
-  long$loc <- unlist(lapply(test, '[[', 2)) #set header attribute 2
-  long$depth <- unlist(lapply(test, '[[', 3)) #set header attribute 3
+  long$heatStat <- unlist(lapply(test, '[[', 1)) #set header for heated or unheated status
+  long$regStat <- unlist(lapply(test, '[[', 2)) #set header for regulator or monitor
+  long$dist <- unlist(lapply(test, '[[', 3)) #set header for distance to center
+  long$depth <- unlist(lapply(test, '[[', 4)) #set header for depth
   long <- subset(long, select = -c(variable))
 ```
 
@@ -153,8 +151,11 @@ Check the ranges of this variable to be sure:
 ###Write data object to .csv or sort data
 ```{r}
   #uncomment to write data to a csv file, change path to desired destination
-  #write.csv(long, file = "/Users/rzabramoff/Desktop/myfile.csv")
-  #write.csv(wide2, file = "/Users/rzabramoff/Desktop/mywidefile.csv")
+  #subset<-long[seq(1,length(long$value),1000),]
+  #write.csv(subset, file = "/Users/rzabramoff/Desktop/myfile.csv") 
+  #write.csv(long, file = "/Users/rzabramoff/Desktop/myfile.csv") #change file path
+  #write.csv(wide, file = "/Users/rzabramoff/Desktop/myfirstwidefile.csv")
+  #write.csv(wide2, file = "/Users/rzabramoff/Desktop/mysecondwidefile.csv")
   
   #uncomment to sort data
   #sorted1 <- long[order(long$value),] #sort by value
@@ -179,40 +180,137 @@ Instead of `long$time`, which means select the time attribute of the data object
 I can use `long[long$circuit == "H" & long$loc == 1 & long$depth == 1,]$time` to select the time attribute of the data object `long` ONLY if circuit = H AND location = 1 AND depth = 1.  
   
 I can use other conditional arguments such as "|" for "or" and "!=" for "not".  
-```{r}
-par(mfrow = c(1,1))
-  plot(wide$time, wide$Uavg)
-```
 
+###Practice Plots
+```{r,eval=FALSE}
 
-```{r}
-  par(mfrow = c(1,2)) #plots two plots side-by-side (one row of plots, and two columns)
-  #sample plot with wide data format
-  plot(wide2$time, wide2$Uavg, cex = 0.5, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", xaxt = "n")
-  r <- range(wide2$time)
-  axis.POSIXct(1, at = seq(r[1], r[2], by = "days"), format = "%m/%d - %I%p")
-  points(wide2$time, wide2$Havg, cex = 0.5, col = 2)
-  points(wide2$time, wide2$TempDiff, cex = 0.5, col = 4)
-  legend("topright",c("Uavg","Havg", "TempDiff"),
-         pch = c(1,1,1),
-         col=c(1,2,4),cex=1.3
-  )
+#   par(mfrow = c(1,1)) #one plot in plot window
+#   
+#   #sample plot with long data format (only plotting every 100th value for speed)
+#   plot(long$time[seq(1,length(long$time), 100)], long$value[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", main = "All data", ylim = c(0,20))
+#   #r <- range(long$time, na.rm = F)
+#   #axis.POSIXct(1, at = seq(r[1], r[2], by = "days"), format = "%m/%d - %I%p")
+# 
+#   #sample plot with long data format (only plotting circuit H, location 1, depths 1 & 2)
+#   plot(long[long$regStat == "R",]$time, long[long$regStat == "R",]$UAvg, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 1, ylim = c(0,40))
+#   points(long[long$regStat == "R",]$time, long[long$regStat == "R",]$HAvg, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 2)
+#   #axis.POSIXct(1, at = seq(r[1], r[2], by = "hours"), format = "%m/%d - %I%p")
+#     legend("topright",c("UAvg","HAvg"),
+#          pch = c(1,1),
+#          col=c(1,2),cex=1.3
+#   )
+#     
+#   plot(long[long$id == "D1EF" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "D1EF" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 1, ylim = c(-5,10))
+#     #points(long[long$id == "380C" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "380C" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 2) 
+#     #points(long[long$id == "B7D1" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "B7D1" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 3)
+#     points(long[long$id == "89A1" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "89A1" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 4)
+#     points(long[long$id == "97F4" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "97F4" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 5)
+#     #points(long[long$id == "7E4F" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "7E4F" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 6)
+#     points(long[long$id == "11FD" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "11FD" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 7)
+#     #points(long[long$id == "8F0A" & long$depth == 5,]$time[seq(1,length(long$time), 100)], long[long$id == "8F0A" & long$depth == 5,]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 8)
+#       legend("topright",c("D1EF","380C", "B7D1", "89A1", "97F4", "74EF", "11FD", "8F0A"),
+#          pch = rep(1,8),
+#          col=1:8,cex=1.3
+#   )  
   
-  #sample plot with long data format (only plotting every 100th value for speed)
-  plot(long$time[seq(1,length(long$time), 100)], long$value[seq(1,length(long$time), 100)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", main = "All data", xaxt = "n")
-  r <- range(long$time)
-  axis.POSIXct(1, at = seq(r[1], r[2], by = "days"), format = "%m/%d - %I%p")
-
-  #sample plot with long data format (only plotting circuit H, location 1, depths 1 & 2)
-  par(mfrow = c(1,1))
-  plot(long[long$circuit == "H" & long$loc == 1 & long$depth == 1,]$time, long[long$circuit == "H" & long$loc == 1 & long$depth == 1,]$value, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", xaxt = "n", col = 1, ylim = c(0,40))
-  points(long[long$circuit == "H" & long$loc == 1 & long$depth == 2,]$time, long[long$circuit == "H" & long$loc == 1 & long$depth == 2,]$value, ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", xaxt = "n", col = 2)
-  axis.POSIXct(1, at = seq(r[1], r[2], by = "hours"), format = "%m/%d - %I%p")
-    legend("topright",c("Depth 1","Depth 2"),
-         pch = c(1,1),
-         col=c(1,2),cex=1.3
-  )
-#proc.time() - ptm #end timer
 ```
 
+###Nice plots  
+
+####Plot 1: Average temperature in heated and unheated blocks  
+```{r}
+    par(mfrow = c(1,1)) 
+#Plot 1
+    pointEvery = 100
+      plot(long[long$id == "D1EF" | long$id == "89A1" | long$id == "97F4" | long$id == "11FD" & long$time < "2015-08-23",]$time[seq(1,length(long$time), pointEvery)], long[long$id == "D1EF" | long$id == "89A1" | long$id == "97F4" | long$id == "11FD" & long$time < "2015-08-23",]$UAvg[seq(1,length(long$time), pointEvery)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 1, ylim = c(-2,13))
+  points(long[long$id == "D1EF" | long$id == "89A1" | long$id == "97F4" | long$id == "11FD" & long$time < "2015-08-23",]$time[seq(1,length(long$time), pointEvery)], long[long$id == "D1EF" | long$id == "89A1" | long$id == "97F4" | long$id == "11FD" & long$time < "2015-08-23",]$HAvg[seq(1,length(long$time), pointEvery)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 2)
+  #  legend("topright",c("Unheated","Heated"),
+  #       pch = c(1,1),
+  #       col=c(1,2),cex=1
+  #)
+```
+
+####Plot 2: Temperature difference between heated and unheated blocks
+```{r}
+#Plot 2
+par(mfrow=c(4,1))  
+pointEvery = 50
+      plot(long[long$id == "D1EF" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "D1EF" & long$depth == 5,]$TempDiff[seq(1,length(long$time), pointEvery)], ylab = expression("Temp Diff (" ~ degree*C ~ ")"), xlab = "Time", col = 1, ylim = c(-5,10), main = "D1EF")
+      abline(h = 0, col = 8)
+    plot(long[long$id == "89A1" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "89A1" & long$depth == 5,]$TempDiff[seq(1,length(long$time), pointEvery)], ylab = expression("Temp Diff (" ~ degree*C ~ ")"), xlab = "Time", col = 2, ylim = c(-5,10), main = "89A1")
+    abline(h = 0, col = 8)
+    plot(long[long$id == "97F4" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "97F4" & long$depth == 5,]$TempDiff[seq(1,length(long$time), pointEvery)], ylab = expression("Temp Diff (" ~ degree*C ~ ")"), xlab = "Time", col = 3, ylim = c(-5,10), main = "97F4")
+    abline(h = 0, col = 8)
+    plot(long[long$id == "11FD" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "11FD" & long$depth == 5,]$TempDiff[seq(1,length(long$time), pointEvery)], ylab = expression("Temp Diff (" ~ degree*C ~ ")"), xlab = "Time", col = 4, ylim = c(-5,10), main = "11FD")
+    abline(h = 0, col = 8)
+    
+#Plot 2 (option 2): Temperature difference between heated and unheated blocks at all depths (equivalent plot, but fewer points skipped)
+#       plot(long[long$id == "D1EF",]$time[seq(1,length(long$time), 100)], long[long$id == "D1EF",]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature Difference (" ~ degree*C ~ ")"), xlab = "Time", col = 1, ylim = c(-5,10))
+#     points(long[long$id == "89A1",]$time[seq(1,length(long$time), 100)], long[long$id == "89A1",]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature Difference (" ~ degree*C ~ ")"), xlab = "Time", col = 2)
+#     points(long[long$id == "97F4",]$time[seq(1,length(long$time), 100)], long[long$id == "97F4",]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature Difference (" ~ degree*C ~ ")"), xlab = "Time", col = 3)
+#     points(long[long$id == "11FD",]$time[seq(1,length(long$time), 100)], long[long$id == "11FD",]$TempDiff[seq(1,length(long$time), 100)], ylab = expression("Temperature Difference (" ~ degree*C ~ ")"), xlab = "Time", col = 4)
+#     abline(h = 0, col = 8)
+```
+
+####Plot 3: Temperature in heated and unheated block B7D1 at depth = 5cm and depth = 35cm  
+One block (long$id) is plotted for ease of viewing, but heating effects vary widely among different ids.  
+You can type in different ids in place of B7D1 in the code below (line 256) and re-run this plot to see for yourself.
+On line 257, you can specify how many datapoints to skip.
+```{r}
+# wide style test plots
+#     plot(wide$time, wide$U.R.8.5, ylim = c(0,20))
+#     points(wide$time, wide$U.R.8.25, col = 2)
+    
+#Plot 3
+    useThisId = "B7D1"
+    pointEvery = 1
+    unsurf <- long[long$id == useThisId &  long$regStat == "M" & long$heatStat == "U" & long$depth == 5,]
+    hotsurf <- long[long$id == useThisId & long$regStat == "M" & long$heatStat == "H" & long$depth == 5,]
+    undeep <- long[long$id == useThisId & long$regStat == "M" & long$heatStat == "U" & long$depth == 35,]
+    hotdeep <- long[long$id == useThisId & long$regStat == "M" & long$heatStat == "H" & long$depth == 35,]
+    
+         plot(unsurf$time[seq(1,length(long$time), pointEvery)], unsurf$value[seq(1,length(long$time), pointEvery)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 1, ylim = c(-5,20))
+  points(hotsurf$time[seq(1,length(long$time), pointEvery)], hotsurf$value[seq(1,length(long$time), pointEvery)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 2)
+  points(undeep$time[seq(1,length(long$time), pointEvery)], undeep$value[seq(1,length(long$time), pointEvery)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 3, ylim = c(-2,13))
+  points(hotdeep$time[seq(1,length(long$time), pointEvery)], hotdeep$value[seq(1,length(long$time), pointEvery)], ylab = expression("Temperature (" ~ degree*C ~ ")"), xlab = "Time", col = 4)
+    legend("topright",c("Unheated 5cm","Heated 5cm", "Unheated 35cm", "Heated 35cm"),
+         pch = c(1,1,1,1),
+         col=c(1:4),cex=1
+  )
+
+##This plot uses the TempDiff computed by the datalogger which is identical for different depth categories 
+#      plot(long[long$id == "D1EF" & long$depth == 5,]$time, long[long$id == "D1EF" & long$depth == 5,]$TempDiff, ylab = expression("Temperature Difference (" ~ degree*C ~ ")"), xlab = "Time", col = 1, ylim = c(-5,10))
+#     points(long[long$id == "D1EF" & long$depth == 35,]$time, long[long$id == "D1EF" & long$depth == 35,]$TempDiff, ylab = expression("Temperature Difference (" ~ degree*C ~ ")"), xlab = "Time", col = 6)
+#        legend("topright",c("5 cm","35 cm"),
+#          pch = c(1,1),
+#          col=c(1,6),cex=1
+#   )
+
+#proc.time() - ptm #end timer      
+```
+
+####Plot 4: Voltage per plot
+```{r}
+#Plot 4
+par(mfrow=c(4,1))  
+pointEvery = 50
+      plot(long[long$id == "D1EF" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "D1EF" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], ylab = "Voltage", xlab = "Time", col = 1, ylim = c(11,14.5), main = "D1EF")
+      plot(long[long$id == "89A1" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "89A1" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], ylab = "Voltage", xlab = "Time", col = 2, ylim = c(11,14.5), main = "89A1")
+    plot(long[long$id == "97F4" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "97F4" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], ylab = "Voltage", xlab = "Time", col = 3, ylim = c(11,14.5), main = "97F4")
+        plot(long[long$id == "11FD" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "11FD" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], ylab = "Voltage", xlab = "Time", col = 4, ylim = c(11,14.5), main = "11FD")
+
+par(mfrow=c(1,1))  
+pointEvery = 50
+      plot(long[long$id == "D1EF" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "D1EF" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], ylab = "Voltage", xlab = "Time", col = 1, ylim = c(11,14.5))
+      points(long[long$id == "89A1" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "89A1" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], col = 2)
+      points(long[long$id == "97F4" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "97F4" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], col = 3)
+      points(long[long$id == "11FD" & long$depth == 5,]$time[seq(1,length(long$time), pointEvery)], long[long$id == "11FD" & long$depth == 5,]$Voltage[seq(1,length(long$time), pointEvery)], col = 4)     
+```
+
+####Plot 5: Performance before and after solar panel installation
+```{r}
+par(mfrow = c(2,1))
+hist(long[long$Voltage < 14.5 & long$Voltage > 11 & long$time < "2015-08-13",]$Voltage, breaks = 20, xlim = c(11,14.5), main = "Before Installation", xlab = "Voltage")
+hist(long[long$Voltage < 14.5 & long$Voltage > 11 & long$time > "2015-08-13",]$Voltage, breaks = 10, xlim = c(11,14.5), main = "After Installation", xlab = "Voltage")
+```
 
